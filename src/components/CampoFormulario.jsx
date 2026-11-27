@@ -4,14 +4,7 @@ export default function CampoFormulario({ etiqueta, nombre, valor, onChange, err
   return (
     <div className="campo">
       <label htmlFor={nombre}>{etiqueta}</label>
-      <input
-        id={nombre}
-        name={nombre}
-        type={tipo}
-        value={valor}
-        onChange={onChange}
-        aria-invalid={Boolean(error)}
-      />
+      <input id={nombre} name={nombre} type={tipo} value={valor} onChange={onChange} aria-invalid={Boolean(error)} />
       {error && <small className="campo__error">{error}</small>}
     </div>
   );

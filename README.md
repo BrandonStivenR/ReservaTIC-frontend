@@ -1,21 +1,21 @@
-# ReservaTIC – Componente front-end (GA7-220501096-AA4-EV03)
+# ReservaTIC – Front-end (GA8-220501096-AA1-EV01)
 
-Módulo de reservas de salas y ambientes de formación, hecho con **React + Vite**.
-Se conecta al back-end Spring Boot mediante `GET/POST /api/reservas`.
+Interfaz web en **React + Vite** que consume la API de `ReservaTIC-backend` (Spring Boot, puerto 8081).
 
 ## Ejecutar
 ```bash
 npm install
-npm run dev        # http://localhost:5173 (el back-end debe estar en el puerto 8080)
+npm run dev      # http://localhost:5173  (el back-end debe estar encendido en el puerto 8081)
+npm test         # pruebas unitarias (Vitest)
 ```
+Usuario de prueba creado por el back-end: `admin` / `Admin123`.
+
+## Pantallas (mapa de navegación)
+`/login` → `/` (Panel de reservas) ⇄ `/nueva` (Nueva reserva) · `/registro` · cerrar sesión → `/login`.
+El panel y el formulario requieren sesión iniciada.
 
 ## Estructura
-- `src/components/`: Navbar, Alerta, CampoFormulario, TarjetaReserva, ListaReservas
-- `src/pages/`: Panel y FormularioReserva
-- `src/services/`: comunicación con Spring Boot
-- `src/utils/`: validaciones (ficha, horas, cruce de horarios)
-
-## Estándares de codificación
-Componentes en PascalCase, variables y funciones en camelCase, indentación de 2 espacios, comentarios en español.
+`pages/` pantallas · `components/` piezas reutilizables · `services/api.js` conexión con el back-end ·
+`context/` sesión · `utils/` validaciones y sus pruebas.
 
 Aprendiz: Brandon Stiven Robles Lozada – Ficha 3336092

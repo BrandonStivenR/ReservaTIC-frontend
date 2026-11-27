@@ -1,43 +1,62 @@
-// Reglas de validación del formulario (iguales a las del back-end Spring Boot)
+// Reglas de validación del front-end (las mismas que aplica el back-end Spring Boot)
 
-// Ficha: letras, números, espacios, punto y guion
-export const fichaValida = (ficha) => /^[A-Za-z0-9ÁÉÍÓÚÜáéíóúüÑñ .-]+$/.test(ficha);
+// Usuario: 3 a 30 caracteres entre letras, números, punto, guion y guion bajo
+export const usuarioValido = (u) => /^[A-Za-z0-9._-]{3,30}$/.test(u);
 
-// La hora de fin debe ser posterior a la de inicio ("HH:MM" se compara como texto)
-export const horasCoherentes = (inicio, fin) => inicio < fin;
+// Ficha: 3 a 20 caracteres entre letras, números o guion
+export const fichaValida = (f) => /^[A-Za-z0-9-]{3,20}$/.test(f);
 
-// Hay cruce si es la misma sala y fecha, la reserva no está cancelada y los horarios se solapan
+// El servidor puede devolver "08:00:00"; se compara solo "HH:MM"
+export const hhmm = (hora) => String(hora ?? "").slice(0, 5);
+
+// La hora de fin debe ser posterior a la de inicio
+export const horasCoherentes = (inicio, fin) => hhmm(inicio) < hhmm(fin);
+
+// Hay cruce si: mismo ambiente y fecha, reserva no cancelada y horarios traslapados.
+// Una reserva que termina a las 10:00 NO se cruza con otra que empieza a las 10:00.
 export function hayCruce(nueva, reservas) {
   return reservas.some(
     (r) =>
-      r.estado !== "Cancelada" &&
-      Number(r.idSala) === Number(nueva.idSala) &&
+      r.estado !== "CANCELADA" &&
+      Number(r.ambienteId) === Number(nueva.ambienteId) &&
       r.fecha === nueva.fecha &&
-      nueva.horaInicio < r.horaFin &&
-      nueva.horaFin > r.horaInicio
+      hhmm(nueva.horaInicio) < hhmm(r.horaFin) &&
+      hhmm(nueva.horaFin) > hhmm(r.horaInicio)
   );
 }
 
-// Valida todo el formulario y devuelve un objeto { campo: "mensaje" }
-export function validarReserva(datos, reservasExistentes) {
+// Cada validador devuelve un objeto { campo: "mensaje" } (vacío si todo está bien)
+export function validarLogin({ usuario, contrasena }) {
   const errores = {};
-  const hoy = new Date().toLocaleDateString("en-CA"); // formato AAAA-MM-DD
-  if (!datos.idSala) errores.idSala = "Selecciona una sala.";
-  if (!datos.idUsuario) errores.idUsuario = "Selecciona un usuario.";
-  if (!datos.ficha.trim()) errores.ficha = "Escribe la ficha o programa.";
-  else if (datos.ficha.trim().length > 50) errores.ficha = "La ficha no puede superar los 50 caracteres.";
-  else if (!fichaValida(datos.ficha.trim()))
-    errores.ficha = "La ficha solo admite letras, números, espacios, punto y guion.";
+  if (!usuario.trim()) errores.usuario = "Escribe tu usuario.";
+  if (!contrasena) errores.contrasena = "Escribe tu contraseña.";
+  return errores;
+}
+
+export function validarRegistro({ nombre, usuario, contrasena }) {
+  const errores = {};
+  const largo = nombre.trim().length;
+  if (largo < 3 || largo > 100) errores.nombre = "El nombre debe tener de 3 a 100 caracteres.";
+  if (!usuarioValido(usuario.trim()))
+    errores.usuario = "De 3 a 30 caracteres: letras, números, punto, guion o guion bajo.";
+  if (contrasena.length < 6) errores.contrasena = "La contraseña debe tener al menos 6 caracteres.";
+  return errores;
+}
+
+export function validarReserva(datos, existentes, hoy = new Date().toLocaleDateString("en-CA")) {
+  const errores = {};
+  if (!datos.ambienteId) errores.ambienteId = "Selecciona un ambiente.";
+  if (!fichaValida(datos.ficha.trim()))
+    errores.ficha = "De 3 a 20 caracteres: letras, números o guion.";
   if (!datos.fecha) errores.fecha = "Selecciona la fecha.";
-  else if (datos.fecha < hoy) errores.fecha = "No se puede reservar en una fecha pasada.";
+  else if (datos.fecha < hoy) errores.fecha = "La fecha no puede estar en el pasado.";
   if (!datos.horaInicio) errores.horaInicio = "Selecciona la hora de inicio.";
   if (!datos.horaFin) errores.horaFin = "Selecciona la hora de fin.";
   if (datos.horaInicio && datos.horaFin) {
     if (!horasCoherentes(datos.horaInicio, datos.horaFin))
       errores.horaFin = "La hora de fin debe ser posterior a la de inicio.";
-    else if (!errores.idSala && !errores.fecha && datos.estado !== "Cancelada"
-             && hayCruce(datos, reservasExistentes))
-      errores.horaInicio = "Esa sala ya está reservada en ese horario.";
+    else if (!errores.ambienteId && !errores.fecha && hayCruce(datos, existentes))
+      errores.horaInicio = "Ese ambiente ya está reservado en ese horario.";
   }
   return errores;
 }

@@ -1,38 +1,31 @@
-// Formulario de solicitud de reserva con validaciones en tiempo real
+// Formulario de nueva reserva: el responsable es el usuario que inició sesión
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { crearReserva, obtenerReservas, obtenerSalas, obtenerUsuarios } from "../services/reservaService.js";
+import { crearReserva, obtenerAmbientes, obtenerReservas } from "../services/api.js";
 import { validarReserva } from "../utils/validaciones.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import CampoFormulario from "../components/CampoFormulario.jsx";
 import CampoSelect from "../components/CampoSelect.jsx";
 import Alerta from "../components/Alerta.jsx";
 
-const FORMULARIO_VACIO = {
-  idSala: "", idUsuario: "", ficha: "", fecha: "",
-  horaInicio: "", horaFin: "", estado: "Confirmada",
-};
+const FORMULARIO_VACIO = { ambienteId: "", ficha: "", fecha: "", horaInicio: "", horaFin: "" };
 
 export default function FormularioReserva() {
-  const [datos, setDatos] = useState(FORMULARIO_VACIO); // lo que escribe el usuario
-  const [errores, setErrores] = useState({});           // errores por campo
-  const [existentes, setExistentes] = useState([]);     // para detectar cruces de horario
-  const [salas, setSalas] = useState([]);               // opciones del selector de sala
-  const [usuarios, setUsuarios] = useState([]);         // opciones del selector de usuario
+  const { usuario } = useAuth();
+  const [datos, setDatos] = useState(FORMULARIO_VACIO);
+  const [errores, setErrores] = useState({});
+  const [existentes, setExistentes] = useState([]); // para detectar cruces antes de enviar
+  const [ambientes, setAmbientes] = useState([]);
   const [mensaje, setMensaje] = useState({ tipo: "", texto: "" });
   const navegar = useNavigate();
 
-  // Al abrir el formulario se cargan las listas desde Spring Boot
   useEffect(() => {
-    Promise.all([obtenerReservas(), obtenerSalas(), obtenerUsuarios()])
-      .then(([reservas, listaSalas, listaUsuarios]) => {
-        setExistentes(reservas);
-        setSalas(listaSalas);
-        setUsuarios(listaUsuarios);
-      })
+    Promise.all([obtenerReservas(), obtenerAmbientes()])
+      .then(([reservas, listaAmbientes]) => { setExistentes(reservas); setAmbientes(listaAmbientes); })
       .catch((e) => setMensaje({ tipo: "error", texto: e.message }));
   }, []);
 
-  // Actualiza el campo modificado y valida de inmediato, sin recargar la página
+  // Valida en tiempo real, sin recargar la página
   const manejarCambio = (e) => {
     const nuevos = { ...datos, [e.target.name]: e.target.value };
     setDatos(nuevos);
@@ -49,15 +42,17 @@ export default function FormularioReserva() {
     }
     try {
       await crearReserva({
-        ...datos,
+        ambienteId: Number(datos.ambienteId),
+        responsableId: usuario.id,
         ficha: datos.ficha.trim(),
-        idSala: Number(datos.idSala),
-        idUsuario: Number(datos.idUsuario),
-      });
+        fecha: datos.fecha,
+        horaInicio: datos.horaInicio,
+        horaFin: datos.horaFin,
+      }); // el servidor la crea como PENDIENTE
       setMensaje({ tipo: "exito", texto: "Reserva registrada." });
-      setTimeout(() => navegar("/"), 1200); // vuelve al panel tras confirmar
+      setTimeout(() => navegar("/"), 1200);
     } catch (err) {
-      setMensaje({ tipo: "error", texto: err.message });
+      setMensaje({ tipo: "error", texto: err.message }); // mensaje real del servidor
     }
   };
 
@@ -65,21 +60,12 @@ export default function FormularioReserva() {
     <form className="formulario" onSubmit={manejarEnvio} noValidate>
       <h1>Nueva reserva</h1>
       <Alerta tipo={mensaje.tipo} mensaje={mensaje.texto} />
-      <CampoSelect etiqueta="Sala" nombre="idSala" valor={datos.idSala} onChange={manejarCambio} error={errores.idSala} opciones={salas} />
-      <CampoSelect etiqueta="Usuario" nombre="idUsuario" valor={datos.idUsuario} onChange={manejarCambio} error={errores.idUsuario} opciones={usuarios} />
-      <CampoFormulario etiqueta="Ficha o programa" nombre="ficha" valor={datos.ficha} onChange={manejarCambio} error={errores.ficha} />
+      <CampoSelect etiqueta="Ambiente" nombre="ambienteId" valor={datos.ambienteId} onChange={manejarCambio} error={errores.ambienteId} opciones={ambientes} />
+      <CampoFormulario etiqueta="Ficha" nombre="ficha" valor={datos.ficha} onChange={manejarCambio} error={errores.ficha} />
       <CampoFormulario etiqueta="Fecha" nombre="fecha" tipo="date" valor={datos.fecha} onChange={manejarCambio} error={errores.fecha} />
       <div className="fila">
         <CampoFormulario etiqueta="Hora de inicio" nombre="horaInicio" tipo="time" valor={datos.horaInicio} onChange={manejarCambio} error={errores.horaInicio} />
         <CampoFormulario etiqueta="Hora de fin" nombre="horaFin" tipo="time" valor={datos.horaFin} onChange={manejarCambio} error={errores.horaFin} />
-      </div>
-      <div className="campo">
-        <label htmlFor="estado">Estado</label>
-        <select id="estado" name="estado" value={datos.estado} onChange={manejarCambio}>
-          <option>Confirmada</option>
-          <option>Pendiente</option>
-          <option>Cancelada</option>
-        </select>
       </div>
       <button className="boton" type="submit">Registrar reserva</button>
     </form>
